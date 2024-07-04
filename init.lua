@@ -180,7 +180,7 @@ vim.keymap.set('n', '<C-u>', '<C-u>zz')
 vim.keymap.set('n', 'n', 'nzzzv')
 vim.keymap.set('n', 'N', 'Nzzzv')
 
--- Keep default buffer content when pasting
+-- Keep default register content when pasting
 vim.keymap.set('x', '<leader>p', [["_dP]])
 
 -- Leader copy to system clipboard
