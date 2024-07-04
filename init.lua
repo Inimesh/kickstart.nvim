@@ -102,7 +102,7 @@ vim.g.have_nerd_font = true
 vim.opt.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.opt.relativenumber = true
+vim.opt.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.opt.mouse = 'a'
@@ -157,9 +157,45 @@ vim.opt.scrolloff = 10
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
+-- Remap exit insert mode
+vim.keymap.set('i', 'jk', '<Esc>')
+
+-- Remap navigation to start or end of line
+vim.keymap.set({ 'n', 'v', 'o' }, 'H', '^')
+vim.keymap.set({ 'n', 'v', 'o' }, 'L', '$')
+
+-- Center cursor on nav to start/end of file
+vim.keymap.set({ 'n', 'v', 'o' }, 'gg', 'ggzz')
+vim.keymap.set({ 'n', 'v', 'o' }, 'G', 'Gzz')
+
+-- Move highlighted lines up and down
+vim.keymap.set('v', 'J', ":m '>+1<CR>gv=gv")
+vim.keymap.set('v', 'K', ":m '<-2<CR>gv=gv")
+
+-- Keep cursor in center of screen when half page jumping
+vim.keymap.set('n', '<C-d>', '<C-d>zz')
+vim.keymap.set('n', '<C-u>', '<C-u>zz')
+
+-- Keep search term in center of screen
+vim.keymap.set('n', 'n', 'nzzzv')
+vim.keymap.set('n', 'N', 'Nzzzv')
+
+-- Keep default buffer content when pasting
+vim.keymap.set('x', '<leader>p', [["_dP]])
+
+-- Leader copy to system clipboard
+vim.keymap.set({ 'n', 'v' }, '<leader>y', [["+y]])
+vim.keymap.set('n', '<leader>Y', [["+Y]])
+
+-- Leader delete to void register
+vim.keymap.set({ 'n', 'v' }, '<leader>d', [["_d]])
+
+-- Delete character to void register
+vim.keymap.set({ 'n', 'v' }, 'x', [["_x]])
+
 -- Set highlight on search, but clear on pressing <Esc> in normal mode
 vim.opt.hlsearch = true
-vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
+vim.keymap.set('n', '\\', '<cmd>:set hlsearch!<CR>')
 
 -- Diagnostic keymaps
 vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous [D]iagnostic message' })
