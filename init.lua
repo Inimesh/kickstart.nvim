@@ -154,6 +154,10 @@ vim.opt.cursorline = true
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.opt.scrolloff = 10
 
+-- If a file's contents is altered outside of neovim then the buffer
+-- will update to reflect those changes
+vim.opt.autoread = true
+
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
