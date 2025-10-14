@@ -213,6 +213,9 @@ vim.keymap.set({ 'n', 'v' }, 'x', [["_x]])
 vim.o.hlsearch = true
 vim.keymap.set('n', '\\', '<cmd>:set hlsearch!<CR>')
 
+-- Set '-' to bring up Oil file navigation tool
+vim.keymap.set('n', '-', '<cmd>:Oil<CR>')
+
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 
