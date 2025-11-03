@@ -8,6 +8,11 @@ return {
       view_options = {
         show_hidden = true,
       },
+      keymaps = {
+        -- Removing these mappings as conflicts with window switching
+        ['<C-h>'] = false,
+        ['<C-l>'] = false,
+      },
     },
     -- Optional dependencies
     dependencies = { { 'echasnovski/mini.icons', opts = {} } },
