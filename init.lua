@@ -933,7 +933,9 @@ require('lazy').setup({
     },
   },
 
-  { -- You can easily change to a different colorscheme.
+  -- COLORSCHEMES:
+  { -- DEFAULT COLORSCHEME
+    -- You can easily change to a different colorscheme.
     -- Change the name of the colorscheme plugin below, and then
     -- change the command in the config to whatever the name of that colorscheme is.
     --
@@ -957,6 +959,10 @@ require('lazy').setup({
       vim.cmd.hi 'Comment gui=none'
       vim.cmd.hi 'GitSignsChange guifg=Yellow'
     end,
+  },
+
+  {
+    'rebelot/kanagawa.nvim',
   },
 
   -- Highlight todo, notes, etc in comments
