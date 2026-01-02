@@ -188,10 +188,10 @@ vim.keymap.set({ 'n', 'v', 'o' }, 'G', 'Gzz')
 vim.keymap.set('v', 'J', ":m '>+1<CR>gv=gv")
 vim.keymap.set('v', 'K', ":m '<-2<CR>gv=gv")
 
--- Remap to insert before/after words
-vim.keymap.set('n', 'W', 'wi')
-vim.keymap.set('n', 'E', 'ea')
-vim.keymap.set('n', 'B', 'bi')
+-- Remap to larger in-line traversal
+vim.keymap.set('n', 'W', '3w')
+vim.keymap.set('n', 'E', '3e')
+vim.keymap.set('n', 'B', '3b')
 
 -- Keep cursor in center of screen when half page jumping
 vim.keymap.set('n', '<C-d>', '<C-d>zz')
