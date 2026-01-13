@@ -263,6 +263,29 @@ vim.keymap.set('n', '<C-S-l>', '<C-w>L', { desc = 'Move window to the right' })
 vim.keymap.set('n', '<C-S-j>', '<C-w>J', { desc = 'Move window to the lower' })
 vim.keymap.set('n', '<C-S-k>', '<C-w>K', { desc = 'Move window to the upper' })
 
+-- Toggle diagnostics from basedpyright only
+vim.keymap.set('n', '<leader>tp', function()
+  local bufnr = vim.api.nvim_get_current_buf()
+
+  for _, client in ipairs(vim.lsp.get_clients { bufnr = bufnr }) do
+    if client.name == 'basedpyright' then
+      local ns = vim.lsp.diagnostic.get_namespace(client.id)
+      local enabled = vim.diagnostic.is_enabled { bufnr = bufnr, ns_id = ns }
+
+      if enabled then
+        vim.diagnostic.enable(false, { bufnr = bufnr, ns_id = ns })
+        vim.notify 'basedpyright diagnostics: OFF'
+      else
+        vim.diagnostic.enable(bufnr, ns)
+        vim.notify 'basedpyright diagnostics: ON'
+      end
+      return
+    end
+  end
+
+  vim.notify('basedpyright not attached to this buffer', vim.log.levels.WARN)
+end, { desc = '[T]oggle based[p]yright diagnostics' })
+
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
 
