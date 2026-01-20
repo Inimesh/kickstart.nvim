@@ -279,7 +279,7 @@ vim.keymap.set('n', '<leader>tp', function()
         vim.diagnostic.enable(false, { bufnr = bufnr, ns_id = ns })
         vim.notify 'basedpyright diagnostics: OFF'
       else
-        vim.diagnostic.enable(bufnr, ns)
+        vim.diagnostic.enable(true, { bufnr = bufnr, ns_id = ns })
         vim.notify 'basedpyright diagnostics: ON'
       end
       return
