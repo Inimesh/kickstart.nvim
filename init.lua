@@ -266,28 +266,86 @@ vim.keymap.set('n', '<C-S-l>', '<C-w>L', { desc = 'Move window to the right' })
 vim.keymap.set('n', '<C-S-j>', '<C-w>J', { desc = 'Move window to the lower' })
 vim.keymap.set('n', '<C-S-k>', '<C-w>K', { desc = 'Move window to the upper' })
 
--- Toggle diagnostics from basedpyright only
-vim.keymap.set('n', '<leader>tp', function()
-  local bufnr = vim.api.nvim_get_current_buf()
+do
+  local TYPECHECK_RULE_OVERRIDES = {
+    reportGeneralTypeIssues = 'none',
+    reportPropertyTypeMismatch = 'none',
+    reportInvalidTypeForm = 'none',
+    reportMissingTypeStubs = 'none',
+    reportArgumentType = 'none',
+    reportAssertTypeFailure = 'none',
+    reportAssignmentType = 'none',
+    reportReturnType = 'none',
+    reportInvalidTypeArguments = 'none',
+    reportMissingTypeArgument = 'none',
+    reportInvalidTypeVarUse = 'none',
+    reportUnknownParameterType = 'none',
+    reportUnknownArgumentType = 'none',
+    reportUnknownLambdaType = 'none',
+    reportUnknownVariableType = 'none',
+    reportUnknownMemberType = 'none',
+    reportMissingParameterType = 'none',
+    reportTypeCommentUsage = 'none',
+    reportUnnecessaryTypeIgnoreComment = 'none',
+  }
 
-  for _, client in ipairs(vim.lsp.get_clients { bufnr = bufnr }) do
-    if client.name == 'basedpyright' then
-      local ns = vim.lsp.diagnostic.get_namespace(client.id)
-      local enabled = vim.diagnostic.is_enabled { bufnr = bufnr, ns_id = ns }
+  local overrides_enabled = true -- DEFAULT MODE: false = use config/defaults (type checking on)
 
-      if enabled then
-        vim.diagnostic.enable(false, { bufnr = bufnr, ns_id = ns })
-        vim.notify 'basedpyright diagnostics: OFF'
-      else
-        vim.diagnostic.enable(true, { bufnr = bufnr, ns_id = ns })
-        vim.notify 'basedpyright diagnostics: ON'
+  local function get_basedpyright_client(bufnr)
+    for _, client in ipairs(vim.lsp.get_clients { bufnr = bufnr }) do
+      if client.name == 'basedpyright' then
+        return client
       end
-      return
     end
+    return nil
   end
 
-  vim.notify('basedpyright not attached to this buffer', vim.log.levels.WARN)
-end, { desc = '[T]oggle based[p]yright diagnostics' })
+  local function apply_overrides(client, overrides_or_nil)
+    client.config.settings = client.config.settings or {}
+    client.config.settings.basedpyright = client.config.settings.basedpyright or {}
+    client.config.settings.basedpyright.analysis = client.config.settings.basedpyright.analysis or {}
+
+    client.config.settings.basedpyright.analysis.diagnosticSeverityOverrides = overrides_or_nil
+    client.notify('workspace/didChangeConfiguration', { settings = client.config.settings })
+  end
+
+  -- Apply the default state whenever basedpyright attaches
+  vim.api.nvim_create_autocmd('LspAttach', {
+    group = vim.api.nvim_create_augroup('basedpyright-typecheck-overrides', { clear = true }),
+    callback = function(args)
+      local client = vim.lsp.get_client_by_id(args.data.client_id)
+      if not client or client.name ~= 'basedpyright' then
+        return
+      end
+
+      if overrides_enabled then
+        apply_overrides(client, vim.deepcopy(TYPECHECK_RULE_OVERRIDES))
+      else
+        apply_overrides(client, nil)
+      end
+    end,
+  })
+
+  vim.keymap.set('n', '<leader>tp', function()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local client = get_basedpyright_client(bufnr)
+
+    if not client then
+      vim.notify('basedpyright not attached to this buffer', vim.log.levels.WARN)
+      return
+    end
+
+    overrides_enabled = not overrides_enabled
+
+    if overrides_enabled then
+      apply_overrides(client, vim.deepcopy(TYPECHECK_RULE_OVERRIDES))
+      vim.notify 'basedpyright type-checking OFF'
+    else
+      apply_overrides(client, nil)
+      vim.notify 'basedpyright type-checking ON'
+    end
+  end, { desc = '[T]oggle based[p]yright type-check rule overrides' })
+end
 
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
