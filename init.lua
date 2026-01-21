@@ -227,6 +227,19 @@ vim.keymap.set('n', '-', '<cmd>:Oil<CR>')
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 
+-- Copy current buffer file details
+vim.keymap.set('n', '<leader>yp', function()
+  vim.fn.setreg('+', vim.fn.expand '%:p:.')
+end, { desc = 'Copy current file path' })
+
+vim.keymap.set('n', '<leader>yd', function()
+  vim.fn.setreg('+', vim.fn.expand '%:h')
+end, { desc = 'Copy current directory path' })
+
+vim.keymap.set('n', '<leader>yf', function()
+  vim.fn.setreg('+', vim.fn.expand '%:t:r')
+end, { desc = 'Copy current file name' })
+
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
 -- is not what someone will guess without a bit more experience.
@@ -841,6 +854,16 @@ require('lazy').setup({
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
               -- diagnostics = { disable = { 'missing-fields' } },
+              diagnostics = {
+                globals = { 'vim' },
+              },
+
+              workspace = {
+                checkThirdParty = false,
+                library = vim.api.nvim_get_runtime_file('', true),
+              },
+
+              telemetry = { enable = false },
             },
           },
         },
