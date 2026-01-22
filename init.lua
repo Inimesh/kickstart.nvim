@@ -229,11 +229,11 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 
 -- Copy current buffer file details
 vim.keymap.set('n', '<leader>yp', function()
-  vim.fn.setreg('+', vim.fn.expand '%:p:.')
-end, { desc = 'Copy current file path' })
+  vim.fn.setreg('+', vim.fn.expand '%:p')
+end, { desc = 'Copy absolute file path' })
 
 vim.keymap.set('n', '<leader>yd', function()
-  vim.fn.setreg('+', vim.fn.expand '%:h')
+  vim.fn.setreg('+', vim.fn.expand '%:p:h')
 end, { desc = 'Copy current directory path' })
 
 vim.keymap.set('n', '<leader>yf', function()
