@@ -279,7 +279,7 @@ vim.keymap.set('n', '<C-S-l>', '<C-w>L', { desc = 'Move window to the right' })
 vim.keymap.set('n', '<C-S-j>', '<C-w>J', { desc = 'Move window to the lower' })
 vim.keymap.set('n', '<C-S-k>', '<C-w>K', { desc = 'Move window to the upper' })
 
--- basedpyright LSP toggleable typecheking overrides
+-- basedpyright LSP configs
 do
   local TYPECHECK_RULE_OVERRIDES = {
     reportGeneralTypeIssues = 'none',
@@ -315,6 +315,71 @@ do
     return nil
   end
 
+  local function dedup(list)
+    local seen, out = {}, {}
+    for _, v in ipairs(list or {}) do
+      if v and v ~= '' and not seen[v] then
+        seen[v] = true
+        table.insert(out, v)
+      end
+    end
+    return out
+  end
+
+  -- Ask the active venv's python where a module is imported from, then return its import root.
+  -- For essentia: /path/to/essentia/__init__.py -> returns /path/to
+  local function python_import_root_for(module_name)
+    local venv = os.getenv 'VIRTUAL_ENV'
+    if not venv or venv == '' then
+      return nil
+    end
+
+    local py = venv .. '/bin/python'
+    if vim.fn.executable(py) ~= 1 then
+      return nil
+    end
+
+    local cmd =
+      string.format([[%s -c "import %s, pathlib; print(pathlib.Path(%s.__file__).resolve().parent.parent)"]], vim.fn.shellescape(py), module_name, module_name)
+
+    local out = vim.fn.systemlist(cmd)
+    if vim.v.shell_error ~= 0 or not out or not out[1] or out[1] == '' then
+      return nil
+    end
+
+    local p = out[1]
+    if vim.fn.isdirectory(p) == 1 then
+      return p
+    end
+    return nil
+  end
+
+  local function apply_env_and_paths(client)
+    client.config.settings = client.config.settings or {}
+
+    -- Ensure tables exist
+    client.config.settings.python = client.config.settings.python or {}
+    client.config.settings.basedpyright = client.config.settings.basedpyright or {}
+    client.config.settings.basedpyright.analysis = client.config.settings.basedpyright.analysis or {}
+
+    -- 1) Read active venv from environment (Neovim must be launched from an activated venv)
+    local venv = os.getenv 'VIRTUAL_ENV'
+    if venv and venv ~= '' then
+      client.config.settings.python.venvPath = vim.fn.fnamemodify(venv, ':h')
+      client.config.settings.python.venv = vim.fn.fnamemodify(venv, ':t')
+    end
+
+    -- 2) Mirror runtime import roots for editable installs (fixes "cannot be resolved" for essentia)
+    -- This uses the active venv's python to locate the module.
+    local essentia_root = python_import_root_for 'essentia'
+    if essentia_root then
+      local analysis = client.config.settings.basedpyright.analysis
+      analysis.extraPaths = analysis.extraPaths or {}
+      table.insert(analysis.extraPaths, essentia_root)
+      analysis.extraPaths = dedup(analysis.extraPaths)
+    end
+  end
+
   local function apply_overrides(client, overrides_or_nil)
     client.config.settings = client.config.settings or {}
     client.config.settings.basedpyright = client.config.settings.basedpyright or {}
@@ -333,6 +398,11 @@ do
         return
       end
 
+      -- Set venv + extraPaths first
+      apply_env_and_paths(client)
+      client.notify('workspace/didChangeConfiguration', { settings = client.config.settings })
+
+      -- Then apply your diagnostic override mode
       if overrides_enabled then
         apply_overrides(client, vim.deepcopy(TYPECHECK_RULE_OVERRIDES))
       else
@@ -341,6 +411,7 @@ do
     end,
   })
 
+  -- Toggle type-check overrides (your existing mapping)
   vim.keymap.set('n', '<leader>tp', function()
     local bufnr = vim.api.nvim_get_current_buf()
     local client = get_basedpyright_client(bufnr)
@@ -360,6 +431,19 @@ do
       vim.notify 'basedpyright type-checking ON'
     end
   end, { desc = '[T]oggle based[p]yright type-check rule overrides' })
+
+  -- Optional: manual refresh (handy after :LspRestart or changing venv/root)
+  vim.keymap.set('n', '<leader>tv', function()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local client = get_basedpyright_client(bufnr)
+    if not client then
+      vim.notify('basedpyright not attached to this buffer', vim.log.levels.WARN)
+      return
+    end
+    apply_env_and_paths(client)
+    client.notify('workspace/didChangeConfiguration', { settings = client.config.settings })
+    vim.notify 'basedpyright venv + extraPaths refreshed'
+  end, { desc = '[T]oggle/refresh basedpyright [V]env + extraPaths' })
 end
 
 -- [[ Basic Autocommands ]]
@@ -822,6 +906,37 @@ require('lazy').setup({
       --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
       local capabilities = require('blink.cmp').get_lsp_capabilities()
 
+      local function basedpyright_settings_from_virtual_env()
+        local venv = os.getenv 'VIRTUAL_ENV'
+        if not venv or venv == '' then
+          return {} -- no venv detected; let basedpyright use its defaults
+        end
+
+        local venvPath = vim.fn.fnamemodify(venv, ':h')
+        local venvName = vim.fn.fnamemodify(venv, ':t')
+
+        -- Add repo_root/src to extraPaths if it exists (helps src-layout + editable installs)
+        local extra = {}
+        -- NOTE: This will only work if you open the repo from the root directory, make sure you do this!
+        local src = vim.fn.getcwd() .. '/src'
+        if vim.fn.isdirectory(src) == 1 then
+          extra = { src }
+        end
+
+        return {
+          basedpyright = {
+            analysis = {
+              -- keep your analysis settings here if you add more later
+              extraPaths = extra,
+            },
+          },
+          python = {
+            venvPath = venvPath,
+            venv = venvName,
+          },
+        }
+      end
+
       -- Enable the following language servers
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
       --
@@ -834,7 +949,9 @@ require('lazy').setup({
       local servers = {
         -- clangd = {},
         gopls = {},
-        -- pyright = {},
+        basedpyright = {
+          settings = basedpyright_settings_from_virtual_env(),
+        },
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
