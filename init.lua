@@ -279,6 +279,7 @@ vim.keymap.set('n', '<C-S-l>', '<C-w>L', { desc = 'Move window to the right' })
 vim.keymap.set('n', '<C-S-j>', '<C-w>J', { desc = 'Move window to the lower' })
 vim.keymap.set('n', '<C-S-k>', '<C-w>K', { desc = 'Move window to the upper' })
 
+-- basedpyright LSP toggleable typecheking overrides
 do
   local TYPECHECK_RULE_OVERRIDES = {
     reportGeneralTypeIssues = 'none',
@@ -300,6 +301,7 @@ do
     reportMissingParameterType = 'none',
     reportTypeCommentUsage = 'none',
     reportUnnecessaryTypeIgnoreComment = 'none',
+    reportAny = 'none',
   }
 
   local overrides_enabled = true -- DEFAULT MODE: false = use config/defaults (type checking on)
