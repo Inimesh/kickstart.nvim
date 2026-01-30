@@ -1232,8 +1232,13 @@ require('lazy').setup({
         return '%2l:%-2v'
       end
 
-      -- ... and there is more!
-      --  Check out: https://github.com/echasnovski/mini.nvim
+      -- Hide diagnostic information
+      statusline.section_diagnostics = function()
+        return ''
+      end
+      statusline.section_lsp = function()
+        return ''
+      end
     end,
   },
   { -- Highlight, edit, and navigate code
