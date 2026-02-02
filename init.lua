@@ -231,10 +231,20 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 
 -- Copy current buffer file details
 vim.keymap.set('n', '<leader>yp', function()
+  local path = vim.fn.expand '%:p'
+  vim.fn.setreg('+', vim.fn.fnamemodify(path, ':~'))
+end, { desc = 'Copy absolute file path (~/)' })
+
+vim.keymap.set('n', '<leader>yd', function()
+  local dir = vim.fn.expand '%:p:h'
+  vim.fn.setreg('+', vim.fn.fnamemodify(dir, ':~'))
+end, { desc = 'Copy current directory path (~/)' })
+
+vim.keymap.set('n', '<leader>ypa', function()
   vim.fn.setreg('+', vim.fn.expand '%:p')
 end, { desc = 'Copy absolute file path' })
 
-vim.keymap.set('n', '<leader>yd', function()
+vim.keymap.set('n', '<leader>yda', function()
   vim.fn.setreg('+', vim.fn.expand '%:p:h')
 end, { desc = 'Copy current directory path' })
 
