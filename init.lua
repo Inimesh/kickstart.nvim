@@ -1278,6 +1278,7 @@ require('lazy').setup({
         'bash',
         'markdown',
         'typescript',
+        'awk',
       }
       -- initialize plugin internals
       require('nvim-treesitter').setup()
