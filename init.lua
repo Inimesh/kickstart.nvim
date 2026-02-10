@@ -1264,22 +1264,26 @@ require('lazy').setup({
     config = function()
       local parsers = {
         'bash',
-        'go',
         'c',
         'diff',
-        'html',
         'lua',
         'luadoc',
+        'go',
         'python',
         'markdown_inline',
         'query',
         'vim',
         'vimdoc',
+        'html',
+        'css',
         'javascript',
-        'bash',
-        'markdown',
         'typescript',
+        'json',
+        'tsx',
+        'markdown',
         'awk',
+        'toml',
+        'yaml',
       }
       -- initialize plugin internals
       require('nvim-treesitter').setup()
