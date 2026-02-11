@@ -134,7 +134,7 @@ vim.o.ignorecase = true
 vim.o.smartcase = true
 
 -- Keep signcolumn on by default
-vim.o.signcolumn = 'yes'
+vim.o.signcolumn = 'auto:2'
 
 -- Decrease update time
 vim.o.updatetime = 250
@@ -533,7 +533,10 @@ require('lazy').setup({
   -- See `:help gitsigns` to understand what the configuration keys do
   { -- Adds git related signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
-    opts = {},
+    opts = {
+      -- setting higher than diagnostic priority of 10 so gitsigns always show in gutter
+      sign_priority = 100,
+    },
   },
 
   -- NOTE: Plugins can also be configured to run Lua code when they are loaded.
@@ -892,13 +895,14 @@ require('lazy').setup({
         float = { border = 'rounded', source = 'if_many' },
         underline = { severity = vim.diagnostic.severity.ERROR },
         signs = vim.g.have_nerd_font and {
+          priority = 10,
           text = {
             [vim.diagnostic.severity.ERROR] = '󰅚 ',
             [vim.diagnostic.severity.WARN] = '󰀪 ',
             [vim.diagnostic.severity.INFO] = '󰋽 ',
             [vim.diagnostic.severity.HINT] = '󰌶 ',
           },
-        } or {},
+        } or { priority = 10 },
         virtual_text = {
           source = 'if_many',
           spacing = 2,
