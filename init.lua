@@ -1288,6 +1288,9 @@ require('lazy').setup({
       -- initialize plugin internals
       require('nvim-treesitter').setup()
 
+      vim.treesitter.language.register('tsx', 'typescriptreact')
+      vim.treesitter.language.register('tsx', 'javascriptreact')
+
       -- install parsers asynchronously
       vim.defer_fn(function()
         require('nvim-treesitter').install(parsers):wait(300000)
@@ -1295,7 +1298,10 @@ require('lazy').setup({
 
       -- start treesitter on file open
       vim.api.nvim_create_autocmd('FileType', {
-        pattern = parsers,
+        pattern = vim.tbl_extend('force', parsers, {
+          'javascriptreact',
+          'typescriptreact',
+        }),
         callback = function()
           vim.treesitter.start()
         end,
