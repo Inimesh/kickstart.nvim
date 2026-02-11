@@ -1211,6 +1211,19 @@ require('lazy').setup({
     'rebelot/kanagawa.nvim',
   },
 
+  {
+    'svrana/neosolarized.nvim',
+    lazy = false,
+    config = function()
+      require('neosolarized').setup {
+        comment_italics = true,
+        background_set = true,
+      }
+    end,
+    dependencies = {
+      'tjdevries/colorbuddy.nvim',
+    },
+  },
   -- Highlight todo, notes, etc in comments
   { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
 
