@@ -1301,6 +1301,7 @@ require('lazy').setup({
         'awk',
         'toml',
         'yaml',
+        'sql',
       }
       -- initialize plugin internals
       require('nvim-treesitter').setup()
