@@ -249,7 +249,7 @@ vim.keymap.set('n', '<leader>yda', function()
 end, { desc = 'Copy current directory path' })
 
 vim.keymap.set('n', '<leader>yf', function()
-  vim.fn.setreg('+', vim.fn.expand '%:t:r')
+  vim.fn.setreg('+', vim.fn.expand '%:t')
 end, { desc = 'Copy current file name' })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
