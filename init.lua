@@ -1229,7 +1229,32 @@ require('lazy').setup({
     },
   },
   -- Highlight todo, notes, etc in comments
-  { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
+  {
+    'folke/todo-comments.nvim',
+    event = 'VimEnter',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    opts = { signs = false },
+    config = function(_, opts)
+      require('todo-comments').setup(opts)
+      -- The Todo* highlight groups are wiped by every `:colorscheme` call (which
+      -- runs `:hi clear` implicitly). The plugin's own ColorScheme handler is
+      -- deferred by 10ms and races with the per-filetype colorscheme switches
+      -- in after/ftplugin/*.lua. Worse, file-open paths like Oil don't fire
+      -- ColorScheme at all, so the deferred handler never gets a chance.
+      -- BufWinEnter does fire reliably in those paths, so hook both.
+      local function reapply()
+        pcall(function()
+          require('todo-comments.config').colors()
+        end)
+      end
+      vim.api.nvim_create_autocmd({ 'ColorScheme', 'BufWinEnter' }, {
+        callback = function()
+          vim.schedule(reapply)
+        end,
+      })
+      vim.schedule(reapply)
+    end,
+  },
 
   { -- Collection of various small independent plugins/modules
     'nvim-mini/mini.nvim',
