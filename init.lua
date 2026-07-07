@@ -98,6 +98,9 @@ vim.g.have_nerd_font = true
 -- NOTE: You can change these options as you wish!
 --  For more options, you can see `:help option-list`
 
+-- Better colour fidelity
+vim.o.termguicolors = true
+
 -- Make line numbers default
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.
@@ -109,6 +112,8 @@ vim.o.mouse = 'a'
 
 -- Don't show the mode, since it's already in the status line
 vim.o.showmode = false
+-- This gives one continuous statusline for the whole neovim window not just the current buffer
+vim.o.laststatus = 3
 
 -- Sync clipboard between OS and Neovim.
 --  Schedule the setting after `UiEnter` because it can increase startup-time.
@@ -129,7 +134,7 @@ vim.o.ignorecase = true
 vim.o.smartcase = true
 
 -- Keep signcolumn on by default
-vim.o.signcolumn = 'yes'
+vim.o.signcolumn = 'auto:2'
 
 -- Decrease update time
 vim.o.updatetime = 250
@@ -224,6 +229,29 @@ vim.keymap.set('n', '-', '<cmd>:Oil<CR>')
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 
+-- Copy current buffer file details
+vim.keymap.set('n', '<leader>yp', function()
+  local path = vim.fn.expand '%:p'
+  vim.fn.setreg('+', vim.fn.fnamemodify(path, ':~'))
+end, { desc = 'Copy absolute file path (~/)' })
+
+vim.keymap.set('n', '<leader>yd', function()
+  local dir = vim.fn.expand '%:p:h'
+  vim.fn.setreg('+', vim.fn.fnamemodify(dir, ':~'))
+end, { desc = 'Copy current directory path (~/)' })
+
+vim.keymap.set('n', '<leader>ypa', function()
+  vim.fn.setreg('+', vim.fn.expand '%:p')
+end, { desc = 'Copy absolute file path' })
+
+vim.keymap.set('n', '<leader>yda', function()
+  vim.fn.setreg('+', vim.fn.expand '%:p:h')
+end, { desc = 'Copy current directory path' })
+
+vim.keymap.set('n', '<leader>yf', function()
+  vim.fn.setreg('+', vim.fn.expand '%:t')
+end, { desc = 'Copy current file name' })
+
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
 -- is not what someone will guess without a bit more experience.
@@ -262,6 +290,173 @@ vim.keymap.set('n', '<C-S-h>', '<C-w>H', { desc = 'Move window to the left' })
 vim.keymap.set('n', '<C-S-l>', '<C-w>L', { desc = 'Move window to the right' })
 vim.keymap.set('n', '<C-S-j>', '<C-w>J', { desc = 'Move window to the lower' })
 vim.keymap.set('n', '<C-S-k>', '<C-w>K', { desc = 'Move window to the upper' })
+
+-- basedpyright LSP configs
+do
+  local TYPECHECK_RULE_OVERRIDES = {
+    reportGeneralTypeIssues = 'none',
+    reportPropertyTypeMismatch = 'none',
+    reportInvalidTypeForm = 'none',
+    reportMissingTypeStubs = 'none',
+    reportArgumentType = 'none',
+    reportAssertTypeFailure = 'none',
+    reportAssignmentType = 'none',
+    reportReturnType = 'none',
+    reportInvalidTypeArguments = 'none',
+    reportMissingTypeArgument = 'none',
+    reportInvalidTypeVarUse = 'none',
+    reportUnknownParameterType = 'none',
+    reportUnknownArgumentType = 'none',
+    reportUnknownLambdaType = 'none',
+    reportUnknownVariableType = 'none',
+    reportUnknownMemberType = 'none',
+    reportMissingParameterType = 'none',
+    reportTypeCommentUsage = 'none',
+    reportUnnecessaryTypeIgnoreComment = 'none',
+    reportAny = 'none',
+  }
+
+  local overrides_enabled = true -- DEFAULT MODE: false = use config/defaults (type checking on)
+
+  local function get_basedpyright_client(bufnr)
+    for _, client in ipairs(vim.lsp.get_clients { bufnr = bufnr }) do
+      if client.name == 'basedpyright' then
+        return client
+      end
+    end
+    return nil
+  end
+
+  local function dedup(list)
+    local seen, out = {}, {}
+    for _, v in ipairs(list or {}) do
+      if v and v ~= '' and not seen[v] then
+        seen[v] = true
+        table.insert(out, v)
+      end
+    end
+    return out
+  end
+
+  -- Ask the active venv's python where a module is imported from, then return its import root.
+  -- For essentia: /path/to/essentia/__init__.py -> returns /path/to
+  local function python_import_root_for(module_name)
+    local venv = os.getenv 'VIRTUAL_ENV'
+    if not venv or venv == '' then
+      return nil
+    end
+
+    local py = venv .. '/bin/python'
+    if vim.fn.executable(py) ~= 1 then
+      return nil
+    end
+
+    local cmd =
+      string.format([[%s -c "import %s, pathlib; print(pathlib.Path(%s.__file__).resolve().parent.parent)"]], vim.fn.shellescape(py), module_name, module_name)
+
+    local out = vim.fn.systemlist(cmd)
+    if vim.v.shell_error ~= 0 or not out or not out[1] or out[1] == '' then
+      return nil
+    end
+
+    local p = out[1]
+    if vim.fn.isdirectory(p) == 1 then
+      return p
+    end
+    return nil
+  end
+
+  local function apply_env_and_paths(client)
+    client.config.settings = client.config.settings or {}
+
+    -- Ensure tables exist
+    client.config.settings.python = client.config.settings.python or {}
+    client.config.settings.basedpyright = client.config.settings.basedpyright or {}
+    client.config.settings.basedpyright.analysis = client.config.settings.basedpyright.analysis or {}
+
+    -- 1) Read active venv from environment (Neovim must be launched from an activated venv)
+    local venv = os.getenv 'VIRTUAL_ENV'
+    if venv and venv ~= '' then
+      client.config.settings.python.venvPath = vim.fn.fnamemodify(venv, ':h')
+      client.config.settings.python.venv = vim.fn.fnamemodify(venv, ':t')
+    end
+
+    -- 2) Mirror runtime import roots for editable installs (fixes "cannot be resolved" for essentia)
+    -- This uses the active venv's python to locate the module.
+    local essentia_root = python_import_root_for 'essentia'
+    if essentia_root then
+      local analysis = client.config.settings.basedpyright.analysis
+      analysis.extraPaths = analysis.extraPaths or {}
+      table.insert(analysis.extraPaths, essentia_root)
+      analysis.extraPaths = dedup(analysis.extraPaths)
+    end
+  end
+
+  local function apply_overrides(client, overrides_or_nil)
+    client.config.settings = client.config.settings or {}
+    client.config.settings.basedpyright = client.config.settings.basedpyright or {}
+    client.config.settings.basedpyright.analysis = client.config.settings.basedpyright.analysis or {}
+
+    client.config.settings.basedpyright.analysis.diagnosticSeverityOverrides = overrides_or_nil
+    client.notify('workspace/didChangeConfiguration', { settings = client.config.settings })
+  end
+
+  -- Apply the default state whenever basedpyright attaches
+  vim.api.nvim_create_autocmd('LspAttach', {
+    group = vim.api.nvim_create_augroup('basedpyright-typecheck-overrides', { clear = true }),
+    callback = function(args)
+      local client = vim.lsp.get_client_by_id(args.data.client_id)
+      if not client or client.name ~= 'basedpyright' then
+        return
+      end
+
+      -- Set venv + extraPaths first
+      apply_env_and_paths(client)
+      client.notify('workspace/didChangeConfiguration', { settings = client.config.settings })
+
+      -- Then apply your diagnostic override mode
+      if overrides_enabled then
+        apply_overrides(client, vim.deepcopy(TYPECHECK_RULE_OVERRIDES))
+      else
+        apply_overrides(client, nil)
+      end
+    end,
+  })
+
+  -- Toggle type-check overrides (your existing mapping)
+  vim.keymap.set('n', '<leader>tp', function()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local client = get_basedpyright_client(bufnr)
+
+    if not client then
+      vim.notify('basedpyright not attached to this buffer', vim.log.levels.WARN)
+      return
+    end
+
+    overrides_enabled = not overrides_enabled
+
+    if overrides_enabled then
+      apply_overrides(client, vim.deepcopy(TYPECHECK_RULE_OVERRIDES))
+      vim.notify 'basedpyright type-checking OFF'
+    else
+      apply_overrides(client, nil)
+      vim.notify 'basedpyright type-checking ON'
+    end
+  end, { desc = '[T]oggle based[p]yright type-check rule overrides' })
+
+  -- Optional: manual refresh (handy after :LspRestart or changing venv/root)
+  vim.keymap.set('n', '<leader>tv', function()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local client = get_basedpyright_client(bufnr)
+    if not client then
+      vim.notify('basedpyright not attached to this buffer', vim.log.levels.WARN)
+      return
+    end
+    apply_env_and_paths(client)
+    client.notify('workspace/didChangeConfiguration', { settings = client.config.settings })
+    vim.notify 'basedpyright venv + extraPaths refreshed'
+  end, { desc = '[T]oggle/refresh basedpyright [V]env + extraPaths' })
+end
 
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
@@ -338,7 +533,10 @@ require('lazy').setup({
   -- See `:help gitsigns` to understand what the configuration keys do
   { -- Adds git related signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
-    opts = {},
+    opts = {
+      -- setting higher than diagnostic priority of 10 so gitsigns always show in gutter
+      sign_priority = 100,
+    },
   },
 
   -- NOTE: Plugins can also be configured to run Lua code when they are loaded.
@@ -464,11 +662,12 @@ require('lazy').setup({
         -- You can put your default mappings / updates / etc. in here
         --  All the info you're looking for is in `:help telescope.setup()`
         --
-        -- defaults = {
-        --   mappings = {
-        --     i = { ['<C-enter>'] = 'to_fuzzy_refine' },
-        --   },
-        -- },
+        defaults = {
+          path_display = { 'truncate' },
+          -- mappings = {
+          --   i = { ['<C-enter>'] = 'to_fuzzy_refine' },
+          -- },
+        },
         -- pickers = {}
         extensions = {
           ['ui-select'] = {
@@ -483,14 +682,15 @@ require('lazy').setup({
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
-      vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
+      vim.keymap.set('n', '<leader>sb', builtin.help_tags, { desc = '[S]earch help' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
-      vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
+      vim.keymap.set({ 'n', 'v' }, '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
       vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
       vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
+      vim.keymap.set('n', '<leader>sc', builtin.commands, { desc = '[S]earch [C]ommands' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
       vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
 
@@ -695,13 +895,14 @@ require('lazy').setup({
         float = { border = 'rounded', source = 'if_many' },
         underline = { severity = vim.diagnostic.severity.ERROR },
         signs = vim.g.have_nerd_font and {
+          priority = 10,
           text = {
             [vim.diagnostic.severity.ERROR] = '󰅚 ',
             [vim.diagnostic.severity.WARN] = '󰀪 ',
             [vim.diagnostic.severity.INFO] = '󰋽 ',
             [vim.diagnostic.severity.HINT] = '󰌶 ',
           },
-        } or {},
+        } or { priority = 10 },
         virtual_text = {
           source = 'if_many',
           spacing = 2,
@@ -723,6 +924,37 @@ require('lazy').setup({
       --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
       local capabilities = require('blink.cmp').get_lsp_capabilities()
 
+      local function basedpyright_settings_from_virtual_env()
+        local venv = os.getenv 'VIRTUAL_ENV'
+        if not venv or venv == '' then
+          return {} -- no venv detected; let basedpyright use its defaults
+        end
+
+        local venvPath = vim.fn.fnamemodify(venv, ':h')
+        local venvName = vim.fn.fnamemodify(venv, ':t')
+
+        -- Add repo_root/src to extraPaths if it exists (helps src-layout + editable installs)
+        local extra = {}
+        -- NOTE: This will only work if you open the repo from the root directory, make sure you do this!
+        local src = vim.fn.getcwd() .. '/src'
+        if vim.fn.isdirectory(src) == 1 then
+          extra = { src }
+        end
+
+        return {
+          basedpyright = {
+            analysis = {
+              -- keep your analysis settings here if you add more later
+              extraPaths = extra,
+            },
+          },
+          python = {
+            venvPath = venvPath,
+            venv = venvName,
+          },
+        }
+      end
+
       -- Enable the following language servers
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
       --
@@ -735,7 +967,9 @@ require('lazy').setup({
       local servers = {
         -- clangd = {},
         gopls = {},
-        -- pyright = {},
+        basedpyright = {
+          settings = basedpyright_settings_from_virtual_env(),
+        },
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -757,6 +991,16 @@ require('lazy').setup({
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
               -- diagnostics = { disable = { 'missing-fields' } },
+              diagnostics = {
+                globals = { 'vim' },
+              },
+
+              workspace = {
+                checkThirdParty = false,
+                library = vim.api.nvim_get_runtime_file('', true),
+              },
+
+              telemetry = { enable = false },
             },
           },
         },
@@ -778,6 +1022,7 @@ require('lazy').setup({
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
+        'tree-sitter-cli',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -831,7 +1076,7 @@ require('lazy').setup({
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
-        python = { 'black' },
+        -- python = { 'black' },
         --
         -- You can use 'stop_after_first' to run the first available formatter from the list
         -- javascript = { "prettierd", "prettier", stop_after_first = true },
@@ -970,8 +1215,46 @@ require('lazy').setup({
     'rebelot/kanagawa.nvim',
   },
 
+  {
+    'svrana/neosolarized.nvim',
+    lazy = false,
+    config = function()
+      require('neosolarized').setup {
+        comment_italics = true,
+        background_set = true,
+      }
+    end,
+    dependencies = {
+      'tjdevries/colorbuddy.nvim',
+    },
+  },
   -- Highlight todo, notes, etc in comments
-  { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
+  {
+    'folke/todo-comments.nvim',
+    event = 'VimEnter',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    opts = { signs = false },
+    config = function(_, opts)
+      require('todo-comments').setup(opts)
+      -- The Todo* highlight groups are wiped by every `:colorscheme` call (which
+      -- runs `:hi clear` implicitly). The plugin's own ColorScheme handler is
+      -- deferred by 10ms and races with the per-filetype colorscheme switches
+      -- in after/ftplugin/*.lua. Worse, file-open paths like Oil don't fire
+      -- ColorScheme at all, so the deferred handler never gets a chance.
+      -- BufWinEnter does fire reliably in those paths, so hook both.
+      local function reapply()
+        pcall(function()
+          require('todo-comments.config').colors()
+        end)
+      end
+      vim.api.nvim_create_autocmd({ 'ColorScheme', 'BufWinEnter' }, {
+        callback = function()
+          vim.schedule(reapply)
+        end,
+      })
+      vim.schedule(reapply)
+    end,
+  },
 
   { -- Collection of various small independent plugins/modules
     'nvim-mini/mini.nvim',
@@ -1006,36 +1289,67 @@ require('lazy').setup({
         return '%2l:%-2v'
       end
 
-      -- ... and there is more!
-      --  Check out: https://github.com/echasnovski/mini.nvim
+      -- Hide diagnostic information
+      statusline.section_diagnostics = function()
+        return ''
+      end
+      statusline.section_lsp = function()
+        return ''
+      end
     end,
   },
-  { -- Highlight, edit, and navigate code
+  {
     'nvim-treesitter/nvim-treesitter',
+    lazy = false,
+    branch = 'main',
     build = ':TSUpdate',
-    -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
-    opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
-      -- Autoinstall languages that are not installed
-      auto_install = true,
-      highlight = {
-        enable = true,
-        -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-        --  If you are experiencing weird indenting issues, add the language to
-        --  the list of additional_vim_regex_highlighting and disabled languages for indent.
-        additional_vim_regex_highlighting = { 'ruby' },
-      },
-      indent = { enable = true, disable = { 'ruby' } },
-    },
-    config = function(_, opts)
-      require('nvim-treesitter.config').setup(opts)
+    config = function()
+      local parsers = {
+        'bash',
+        'c',
+        'diff',
+        'lua',
+        'luadoc',
+        'go',
+        'python',
+        'markdown_inline',
+        'query',
+        'vim',
+        'vimdoc',
+        'html',
+        'css',
+        'javascript',
+        'typescript',
+        'json',
+        'tsx',
+        'markdown',
+        'awk',
+        'toml',
+        'yaml',
+        'sql',
+      }
+      -- initialize plugin internals
+      require('nvim-treesitter').setup()
+
+      vim.treesitter.language.register('tsx', 'typescriptreact')
+      vim.treesitter.language.register('tsx', 'javascriptreact')
+
+      -- install parsers asynchronously
+      vim.defer_fn(function()
+        require('nvim-treesitter').install(parsers):wait(300000)
+      end, 0)
+
+      -- start treesitter on file open
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = vim.tbl_extend('force', parsers, {
+          'javascriptreact',
+          'typescriptreact',
+        }),
+        callback = function()
+          vim.treesitter.start()
+        end,
+      })
     end,
-    -- There are additional nvim-treesitter modules that you can use to interact
-    -- with nvim-treesitter. You should go explore a few and see what interests you:
-    --
-    --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
-    --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
-    --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
   },
 
   -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the
