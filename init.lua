@@ -175,6 +175,9 @@ vim.o.confirm = true
 -- will update to reflect those changes
 vim.o.autoread = true
 
+-- quickfix list config
+vim.cmd.packadd 'cfilter'
+
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
