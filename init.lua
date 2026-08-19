@@ -1330,6 +1330,8 @@ require('lazy').setup({
         'toml',
         'yaml',
         'sql',
+        'jinja',
+        'jinja_inline',
       }
       -- initialize plugin internals
       require('nvim-treesitter').setup()
@@ -1348,8 +1350,14 @@ require('lazy').setup({
           'javascriptreact',
           'typescriptreact',
         }),
-        callback = function()
-          vim.treesitter.start()
+        callback = function(ev)
+          -- dbt models are jinja-templated: parse with jinja (SQL is injected
+          -- into content nodes via after/queries/jinja/injections.scm)
+          if ev.match == 'sql' and vim.fs.root(ev.buf, 'dbt_project.yml') then
+            vim.treesitter.start(ev.buf, 'jinja')
+          else
+            vim.treesitter.start(ev.buf)
+          end
         end,
       })
     end,
