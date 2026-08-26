@@ -232,28 +232,43 @@ vim.keymap.set('n', '-', '<cmd>:Oil<CR>')
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 
--- Copy current buffer file details
-vim.keymap.set('n', '<leader>yp', function()
+-- Copy current buffer details
+
+-- File
+vim.keymap.set('n', '<leader>yf', function()
+  vim.fn.setreg('+', vim.fn.expand '%:t')
+end, { desc = 'Copy current file (name)' })
+
+vim.keymap.set('n', '<leader>yfa', function()
+  vim.fn.setreg('+', vim.fn.expand '%:p')
+end, { desc = '< absolute path >' })
+
+vim.keymap.set('n', '<leader>yfh', function()
   local path = vim.fn.expand '%:p'
   vim.fn.setreg('+', vim.fn.fnamemodify(path, ':~'))
-end, { desc = 'Copy absolute file path (~/)' })
+end, { desc = '< ~ relative path >' })
 
+vim.keymap.set('n', '<leader>yfp', function()
+  vim.fn.setreg('+', vim.fn.expand '%:p:.')
+end, { desc = '< project relative path >' })
+
+-- Directory
 vim.keymap.set('n', '<leader>yd', function()
-  local dir = vim.fn.expand '%:p:h'
-  vim.fn.setreg('+', vim.fn.fnamemodify(dir, ':~'))
-end, { desc = 'Copy current directory path (~/)' })
-
-vim.keymap.set('n', '<leader>ypa', function()
-  vim.fn.setreg('+', vim.fn.expand '%:p')
-end, { desc = 'Copy absolute file path' })
+  vim.fn.setreg('+', vim.fn.expand '%:p:h:t')
+end, { desc = 'Copy current directory (name)' })
 
 vim.keymap.set('n', '<leader>yda', function()
   vim.fn.setreg('+', vim.fn.expand '%:p:h')
-end, { desc = 'Copy current directory path' })
+end, { desc = '< absolute path >' })
 
-vim.keymap.set('n', '<leader>yf', function()
-  vim.fn.setreg('+', vim.fn.expand '%:t')
-end, { desc = 'Copy current file name' })
+vim.keymap.set('n', '<leader>ydh', function()
+  local path = vim.fn.expand '%:p:h'
+  vim.fn.setreg('+', vim.fn.fnamemodify(path, ':~'))
+end, { desc = '< ~ relative path >' })
+
+vim.keymap.set('n', '<leader>ydp', function()
+  vim.fn.setreg('+', vim.fn.expand '%:p:.:h')
+end, { desc = '< project relative path >' })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
