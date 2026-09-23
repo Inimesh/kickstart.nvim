@@ -522,6 +522,10 @@ rtp:prepend(lazypath)
 --  To update plugins you can run
 --    :Lazy update
 --
+-- Record Neovim's built-in highlight definitions before any colorscheme
+-- replaces them; the per-window themes applied by styler.nvim need them.
+require('custom.styler_fill').snapshot()
+
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
@@ -1216,16 +1220,18 @@ require('lazy').setup({
         styles = {
           comments = { italic = false }, -- Disable italics in comments
         },
+        -- Highlight overrides go here rather than in `:hi` commands after
+        -- `colorscheme`, because the theme is re-applied every time
+        -- styler.nvim restores the global colorscheme.
+        on_highlights = function(hl)
+          hl.GitSignsChange = { fg = 'Yellow' }
+        end,
       }
 
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
       vim.cmd.colorscheme 'tokyonight-storm'
-
-      -- You can configure highlights by doing something like:
-      vim.cmd.hi 'Comment gui=none'
-      vim.cmd.hi 'GitSignsChange guifg=Yellow'
     end,
   },
 
@@ -1254,12 +1260,10 @@ require('lazy').setup({
     opts = { signs = false },
     config = function(_, opts)
       require('todo-comments').setup(opts)
-      -- The Todo* highlight groups are wiped by every `:colorscheme` call (which
-      -- runs `:hi clear` implicitly). The plugin's own ColorScheme handler is
-      -- deferred by 10ms and races with the per-filetype colorscheme switches
-      -- in after/ftplugin/*.lua. Worse, file-open paths like Oil don't fire
-      -- ColorScheme at all, so the deferred handler never gets a chance.
-      -- BufWinEnter does fire reliably in those paths, so hook both.
+      -- The Todo* highlight groups are wiped whenever a colorscheme is
+      -- (re)applied, including the global reloads styler.nvim schedules. The
+      -- plugin's own ColorScheme handler is deferred by 10ms, and file-open
+      -- paths like Oil fire BufWinEnter but not ColorScheme, so hook both.
       local function reapply()
         pcall(function()
           require('todo-comments.config').colors()
