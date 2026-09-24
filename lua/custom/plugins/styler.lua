@@ -27,6 +27,8 @@ return {
         lua = { colorscheme = 'tokyonight-moon' },
         python = { colorscheme = 'kanagawa' },
         sh = { colorscheme = 'vim' },
+        -- The zsh widget edit-command-line creates a temp_file.zsh
+        zsh = { colorscheme = 'vim' },
         awk = { colorscheme = 'vim' },
       },
     }
