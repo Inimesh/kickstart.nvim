@@ -1357,6 +1357,8 @@ require('lazy').setup({
 
       vim.treesitter.language.register('tsx', 'typescriptreact')
       vim.treesitter.language.register('tsx', 'javascriptreact')
+      vim.treesitter.language.register('bash', 'zsh')
+      vim.treesitter.language.register('bash', 'sh')
 
       -- install parsers asynchronously
       vim.defer_fn(function()
@@ -1365,10 +1367,13 @@ require('lazy').setup({
 
       -- start treesitter on file open
       vim.api.nvim_create_autocmd('FileType', {
-        pattern = vim.tbl_extend('force', parsers, {
+        pattern = vim.list_extend(vim.deepcopy(parsers), {
           'javascriptreact',
           'typescriptreact',
+          'zsh',
+          'sh',
         }),
+
         callback = function(ev)
           -- dbt models are jinja-templated: parse with jinja (SQL is injected
           -- into content nodes via after/queries/jinja/injections.scm)
